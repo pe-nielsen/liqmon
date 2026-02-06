@@ -1,0 +1,13 @@
+[project]
+name = "liqmon-dashboard"
+version = "0.1.0"
+description = "Dash dashboard for liqmon readings."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dash>=2.18.0",
+    "pandas>=2.2.0",
+]
+
+[project.scripts]
+liqmon-dashboard = "app:main"

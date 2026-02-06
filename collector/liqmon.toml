@@ -1,0 +1,14 @@
+[global]
+interval_s = 60
+output = "data/readings.csv"
+utc = true
+
+[[devices]]
+id = "hrc110-eth"
+type = "hrc110"
+transport = "tcp"
+host = "192.168.0.187"
+port = 4266
+# read_terminators = ["\r\n"]
+query = "MEAS? 2"
+

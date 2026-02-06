@@ -1,0 +1,27 @@
+[global]
+interval_s = 60
+output = "data/readings.csv"
+utc = true
+
+[[devices]]
+id = "scm10-serial"
+type = "scm10"
+transport = "serial"
+port = "/dev/ttyUSB2"
+baudrate = 9600
+
+[[devices]]
+id = "scm10-eth"
+type = "scm10"
+transport = "tcp"
+host = "192.168.0.4"
+port = 9760
+
+[[devices]]
+id = "hrc110-eth"
+type = "hrc110"
+transport = "tcp"
+host = "192.168.0.187"
+port = 4266
+# read_terminators = ["\r\n"]
+query = "MEAS? 2"
