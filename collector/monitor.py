@@ -5,6 +5,7 @@ import argparse
 import logging
 import sys
 
+from liqmon.alerts import build_alert_manager
 from liqmon.config import AppConfig, load_config
 from liqmon.devices import build_device
 from liqmon.poller import DeviceTask, Poller
@@ -51,7 +52,8 @@ def main(argv: list[str] | None = None) -> int:
 
     config = load_config(args.config)
     tasks = _build_tasks(config)
-    poller = Poller(tasks, use_utc=config.global_config.utc)
+    alert_manager = build_alert_manager(config)
+    poller = Poller(tasks, use_utc=config.global_config.utc, alert_manager=alert_manager)
     poller.run()
     return 0
 

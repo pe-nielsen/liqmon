@@ -55,6 +55,7 @@ Key config fields:
 - required: `id`, `type` (`scm10`/`hrc110`/`cpa1114`), `transport` (`serial`/`tcp`)
 - transport-specific: serial needs `port`; tcp needs `host` and `port`
 - optional: per-device `interval_s`, `output`, `query`, `write_terminator`, `read_terminators`, `unit_id`
+- optional: `[alerts]` + `[alerts.email]` + `[[alerts.rules]]` for threshold email notifications
 
 Minimal example:
 
@@ -106,3 +107,4 @@ Useful flags:
 - `Unsupported device type/transport`: check `type` and `transport` spelling.
 - Timeout or parse errors: verify query command, terminators, and port/network access.
 - Empty dashboard: confirm CSV path and that collector is writing non-empty rows.
+- Alerts not sending: verify SMTP settings and ensure `password_env` is exported in the shell/session running collector.
