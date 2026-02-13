@@ -130,6 +130,33 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
     return fig
 
 
+def _make_cpa_pressures_figure(df: pd.DataFrame):
+    fig = px.line()
+    fig.update_layout(
+        title="CPA1114 Pressures",
+        xaxis_title="timestamp",
+        yaxis_title="pressure",
+        uirevision="keep",
+    )
+    if df.empty:
+        return fig
+
+    cpa = df[df["metric"].isin(["low_pressure", "high_pressure"])]
+    if cpa.empty:
+        fig.update_layout(title="No CPA1114 pressure data yet")
+        return fig
+
+    fig = px.line(cpa, x="timestamp", y="value", color="metric")
+    fig.update_layout(
+        title="CPA1114 Pressures",
+        xaxis_title="timestamp",
+        yaxis_title="pressure",
+        uirevision="keep",
+        legend_title_text="metric",
+    )
+    return fig
+
+
 def main() -> None:
     args = _parse_args()
 
@@ -230,6 +257,7 @@ def main() -> None:
                 children=[
                     html.Div(dcc.Graph(id="temp-graph"), className="card"),
                     html.Div(dcc.Graph(id="pressure-graph"), className="card"),
+                    html.Div(dcc.Graph(id="cpa-pressure-graph"), className="card"),
                 ],
             ),
             dcc.Interval(id="interval", interval=args.interval_ms, n_intervals=0),
@@ -239,11 +267,16 @@ def main() -> None:
     @app.callback(
         Output("temp-graph", "figure"),
         Output("pressure-graph", "figure"),
+        Output("cpa-pressure-graph", "figure"),
         Input("interval", "n_intervals"),
     )
     def _update(_):
         df = _load_data(args.csv)
-        return _make_temperature_figure(df), _make_pressure_heater_figure(df)
+        return (
+            _make_temperature_figure(df),
+            _make_pressure_heater_figure(df),
+            _make_cpa_pressures_figure(df),
+        )
 
     app.run(host=args.host, port=args.port, debug=False)
 

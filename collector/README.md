@@ -2,6 +2,17 @@
 
 Poll laboratory instruments over serial or TCP and append readings to CSV.
 
+Supported device types:
+
+- `scm10` (temperature)
+- `hrc110` (pressure and heater power)
+- `cpa1114` (low/high compressor pressure via Modbus TCP)
+
+CPA1114 metrics written to CSV:
+
+- `low_pressure`
+- `high_pressure`
+
 ## Quick start
 
 1. Copy `liqmon.example.toml` to `liqmon.toml` and edit for your devices.
@@ -27,4 +38,5 @@ Each measurement is a separate row, so devices that return multiple values (like
 ## Notes
 
 - Device-specific command strings and terminators can be overridden per device.
+- `cpa1114` supports `unit_id` (default `16`) and uses TCP port `502` by default.
 - Set the TCP host/port and serial parameters to match each instrument.

@@ -5,11 +5,15 @@ from typing import Any
 from ..config import DeviceConfig, decode_terminator, decode_terminators
 from ..transports import SerialSettings, SerialTransport, TcpSettings, TcpTransport
 from .base import Device
+from .cpa1114 import CPA1114Device
 from .hrc110 import HRC110Device, hrc110_read_terminators
 from .scm10 import SCM10Device, scm10_read_terminators
 
 
 def build_device(cfg: DeviceConfig) -> Device:
+    if cfg.type.lower() == "cpa1114":
+        return _build_cpa1114(cfg)
+
     transport = _build_transport(cfg.transport, cfg.settings)
     if cfg.type.lower() == "scm10":
         return _build_scm10(cfg, transport)
@@ -24,6 +28,20 @@ def _build_transport(transport: str, settings: dict[str, Any]):
     if transport == "tcp":
         return TcpTransport(_tcp_settings(settings))
     raise ValueError(f"Unsupported transport: {transport}")
+
+
+def _build_cpa1114(cfg: DeviceConfig) -> CPA1114Device:
+    if cfg.transport != "tcp":
+        raise ValueError("CPA1114 supports only tcp transport")
+    tcp = _tcp_settings(cfg.settings)
+    unit_id = int(cfg.settings.get("unit_id", 16))
+    return CPA1114Device(
+        id=cfg.id,
+        host=tcp.host,
+        port=tcp.port,
+        unit_id=unit_id,
+        timeout_s=tcp.timeout_s,
+    )
 
 
 def _build_scm10(cfg: DeviceConfig, transport) -> SCM10Device:

@@ -33,7 +33,7 @@ class SCM10Device:
     def poll(self, timestamp: datetime) -> list[Measurement]:
         payload = self.query.encode("ascii") + self.write_terminator
         raw = self.transport.query(payload, self.read_terminators)
-        text = raw.decode("ascii", errors="replace").strip()
+        text = _sanitize_ascii(raw.decode("ascii", errors="replace"))
         match = self.parse_regex.search(text)
         if not match:
             raise ValueError(f"Unable to parse SCM10 response: {text!r}")
@@ -52,3 +52,9 @@ def scm10_read_terminators(transport: str) -> list[bytes]:
     if transport == "tcp":
         return list(_DEFAULT_TCP_READ_TERMINATORS)
     return list(_DEFAULT_SERIAL_READ_TERMINATORS)
+
+
+def _sanitize_ascii(value: str) -> str:
+    # Some devices/transports can prepend NUL/control bytes before the payload.
+    cleaned = "".join(ch for ch in value if ch == "\t" or ord(ch) >= 0x20)
+    return cleaned.strip()

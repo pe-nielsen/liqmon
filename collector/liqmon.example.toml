@@ -25,3 +25,11 @@ host = "192.168.0.187"
 port = 4266
 # read_terminators = ["\r\n"]
 query = "MEAS? 2"
+
+[[devices]]
+id = "cpa1114-eth"
+type = "cpa1114"
+transport = "tcp"
+host = "192.168.0.111"
+port = 502
+# unit_id = 16
