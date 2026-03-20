@@ -34,8 +34,9 @@ class _RuleState:
 
 
 class EmailNotifier:
-    def __init__(self, cfg: EmailAlertConfig) -> None:
+    def __init__(self, cfg: EmailAlertConfig, max_emails_per_day: int) -> None:
         self._cfg = cfg
+        self._max_emails_per_day = max_emails_per_day
 
     def notify(self, event: AlertEvent) -> None:
         password: str | None = None
@@ -49,8 +50,14 @@ class EmailNotifier:
         msg = EmailMessage()
         msg["From"] = self._cfg.sender
         msg["To"] = ", ".join(self._cfg.recipients)
-        msg["Subject"] = f"liqmon alert: {event.device_id} {event.measurement.metric} out of range"
-        msg.set_content(_build_email_body(event))
+        msg["Subject"] = (
+            f"URGENT: LIQMON ALERT - {event.device_id} {event.measurement.metric} OUT OF RANGE"
+        )
+        # Common "high importance" headers recognized by many mail clients.
+        msg["Importance"] = "high"
+        msg["Priority"] = "urgent"
+        msg["X-Priority"] = "1"
+        msg.set_content(_build_email_body(event, self._max_emails_per_day))
 
         with smtplib.SMTP(self._cfg.smtp_host, self._cfg.smtp_port, timeout=10) as smtp:
             smtp.ehlo()
@@ -155,7 +162,7 @@ def build_alert_manager(cfg: AppConfig) -> AlertManager | None:
 def _build_notifiers(cfg: AlertsConfig) -> list[Notifier]:
     notifiers: list[Notifier] = []
     if cfg.email is not None:
-        notifiers.append(EmailNotifier(cfg.email))
+        notifiers.append(EmailNotifier(cfg.email, cfg.max_emails_per_day))
     return notifiers
 
 
@@ -167,17 +174,22 @@ def _is_out_of_bounds(value: float, min_value: float | None, max_value: float | 
     return False
 
 
-def _build_email_body(event: AlertEvent) -> str:
+def _build_email_body(event: AlertEvent, max_emails_per_day: int) -> str:
     min_text = "unset" if event.rule.min_value is None else str(event.rule.min_value)
     max_text = "unset" if event.rule.max_value is None else str(event.rule.max_value)
     unit = event.rule.unit or event.measurement.unit or ""
+    value_with_unit = f"{event.measurement.value} {unit}".strip()
+    range_with_unit = f"min={min_text} max={max_text} {unit}".strip()
     return (
-        "liqmon alert\n\n"
-        f"timestamp: {event.timestamp.isoformat()}\n"
-        f"device_id: {event.device_id}\n"
-        f"metric: {event.measurement.metric}\n"
-        f"value: {event.measurement.value} {unit}\n"
-        f"allowed range: min={min_text} max={max_text} {unit}\n"
-        f"rule_id: {event.rule.id}\n"
-        f"raw: {event.measurement.raw}\n"
+        "Liqmon detected an out-of-range instrument reading.\n\n"
+        f"Device: {event.device_id}\n"
+        f"Metric: {event.measurement.metric}\n"
+        f"Observed value: {value_with_unit}\n"
+        f"Allowed range: {range_with_unit}\n\n"
+        f"Timestamp: {event.timestamp.isoformat()}\n"
+        f"Alert rule ID: {event.rule.id}\n"
+        f"Raw reading: {event.measurement.raw}\n\n"
+        "Email rate limit note:\n"
+        f"- Alert emails are limited by monitor.toml to max_emails_per_day = {max_emails_per_day}.\n"
+        "- Additional alert events may be suppressed after this limit is reached for the day.\n"
     )
