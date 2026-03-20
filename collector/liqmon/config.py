@@ -28,8 +28,8 @@ class EmailAlertConfig:
     smtp_host: str
     smtp_port: int
     use_starttls: bool
-    username: str
-    password_env: str
+    username: str | None
+    password_env: str | None
     sender: str
     recipients: list[str]
 
@@ -156,12 +156,17 @@ def _parse_alert_email(section: Any) -> EmailAlertConfig | None:
     password_env = section.get("password_env")
     sender = section.get("from")
     recipients = section.get("to")
-    if not smtp_host or not username or not password_env or not sender or not recipients:
+    if not smtp_host or not sender or not recipients:
         raise ValueError(
-            "alerts.email requires smtp_host, username, password_env, from, and to"
+            "alerts.email requires smtp_host, from, and to"
         )
     if not isinstance(recipients, list):
         raise ValueError("alerts.email.to must be a list of email addresses")
+
+    if bool(username) != bool(password_env):
+        raise ValueError(
+            "alerts.email username and password_env must be set together when using authenticated SMTP"
+        )
 
     recipients_clean = [str(addr) for addr in recipients if str(addr).strip()]
     if not recipients_clean:
@@ -169,10 +174,10 @@ def _parse_alert_email(section: Any) -> EmailAlertConfig | None:
 
     return EmailAlertConfig(
         smtp_host=str(smtp_host),
-        smtp_port=int(section.get("smtp_port", 587)),
-        use_starttls=bool(section.get("use_starttls", True)),
-        username=str(username),
-        password_env=str(password_env),
+        smtp_port=int(section.get("smtp_port", 25)),
+        use_starttls=bool(section.get("use_starttls", False)),
+        username=str(username) if username is not None else None,
+        password_env=str(password_env) if password_env is not None else None,
         sender=str(sender),
         recipients=recipients_clean,
     )

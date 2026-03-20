@@ -9,12 +9,14 @@ require_consecutive = 2
 max_emails_per_day = 1
 
 [alerts.email]
-smtp_host = "smtp.office365.com"
-smtp_port = 587
-use_starttls = true
-username = "iqm-instruments@phy.cam.ac.uk"
-password_env = "LIQMON_SMTP_PASSWORD"
-from = "iqm-instruments@phy.cam.ac.uk"
+smtp_host = "smtp.cam.ac.uk"
+smtp_port = 25
+use_starttls = false
+# For relay usage, leave username/password_env unset.
+# For authenticated SMTP, set both username and password_env.
+# username = "your-smtp-user@example.com"
+# password_env = "LIQMON_SMTP_PASSWORD"
+from = "your-sender@example.com"
 to = [
   "your-group@cam.ac.uk",
 ]

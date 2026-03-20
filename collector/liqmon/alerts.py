@@ -38,11 +38,13 @@ class EmailNotifier:
         self._cfg = cfg
 
     def notify(self, event: AlertEvent) -> None:
-        password = os.getenv(self._cfg.password_env)
-        if not password:
-            raise ValueError(
-                f"Environment variable {self._cfg.password_env!r} is not set; cannot send alert email"
-            )
+        password: str | None = None
+        if self._cfg.password_env is not None:
+            password = os.getenv(self._cfg.password_env)
+            if not password:
+                raise ValueError(
+                    f"Environment variable {self._cfg.password_env!r} is not set; cannot send alert email"
+                )
 
         msg = EmailMessage()
         msg["From"] = self._cfg.sender
@@ -50,12 +52,13 @@ class EmailNotifier:
         msg["Subject"] = f"liqmon alert: {event.device_id} {event.measurement.metric} out of range"
         msg.set_content(_build_email_body(event))
 
-        with smtplib.SMTP(self._cfg.smtp_host, self._cfg.smtp_port, timeout=20) as smtp:
+        with smtplib.SMTP(self._cfg.smtp_host, self._cfg.smtp_port, timeout=10) as smtp:
             smtp.ehlo()
             if self._cfg.use_starttls:
                 smtp.starttls()
                 smtp.ehlo()
-            smtp.login(self._cfg.username, password)
+            if self._cfg.username is not None and password is not None:
+                smtp.login(self._cfg.username, password)
             smtp.send_message(msg)
 
 

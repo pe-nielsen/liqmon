@@ -15,11 +15,11 @@ CPA1114 metrics written to CSV:
 
 ## Quick start
 
-1. Copy `liqmon.example.toml` to `liqmon.toml` and edit for your devices.
+1. Copy `monitor.example.toml` to `monitor.toml` and edit for your devices.
 2. Run:
 
 ```bash
-uv run liqmon --config liqmon.toml
+uv run liqmon --config monitor.toml
 ```
 
 ## Output format
@@ -43,14 +43,16 @@ Each measurement is a separate row, so devices that return multiple values (like
 
 ## Email alerts
 
-Optional threshold alerts can be configured in `liqmon.toml` under `[alerts]`.
+Optional threshold alerts can be configured in `monitor.toml` under `[alerts]`.
 
 - Alerts are evaluated in the collector immediately after each successful poll/write.
 - `require_consecutive` controls how many out-of-range readings are required before triggering.
 - `max_emails_per_day` rate-limits total alert emails.
 - Rules are defined with `[[alerts.rules]]` by `device_id` + `metric` and `min`/`max` bounds.
 
-Security recommendation:
+SMTP configuration notes:
 
-- Keep SMTP passwords out of TOML and use `password_env` to read from an environment variable.
-- Example: `export LIQMON_SMTP_PASSWORD='...'` before starting the collector process.
+- Relay mode (no login), matching a simple `smtplib.SMTP(...).send_message(...)` flow:
+  set `smtp_host`, optional `smtp_port` (defaults to `25`), `from`, and `to`.
+- Authenticated mode: set both `username` and `password_env` (plus `use_starttls = true` if required by your provider).
+- If using `password_env`, export it before starting the collector process.

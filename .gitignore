@@ -11,3 +11,5 @@ wheels/
 
 # Collector output
 collector/data/readings.csv
+
+collector/monitor.toml
