@@ -11,7 +11,6 @@ from typing import Protocol
 from .config import AlertRuleConfig, AlertsConfig, AppConfig, EmailAlertConfig
 from .devices.base import Measurement
 
-
 LOG = logging.getLogger("liqmon.alerts")
 
 
@@ -79,11 +78,15 @@ class AlertManager:
     ) -> None:
         self._rules_by_key: dict[tuple[str, str], list[AlertRuleConfig]] = {}
         for rule in rules:
-            self._rules_by_key.setdefault((rule.device_id, rule.metric), []).append(rule)
+            self._rules_by_key.setdefault((rule.device_id, rule.metric), []).append(
+                rule
+            )
         self._notifiers = notifiers
         self._require_consecutive = require_consecutive
         self._max_emails_per_day = max_emails_per_day
-        self._state_by_rule_id: dict[str, _RuleState] = {rule.id: _RuleState() for rule in rules}
+        self._state_by_rule_id: dict[str, _RuleState] = {
+            rule.id: _RuleState() for rule in rules
+        }
         self._sent_count_by_date: dict[date, int] = {}
 
     def evaluate(
@@ -149,7 +152,9 @@ def build_alert_manager(cfg: AppConfig) -> AlertManager | None:
 
     notifiers = _build_notifiers(alerts_cfg)
     if not notifiers:
-        LOG.warning("Alerts enabled but no notifiers configured; alerts will be disabled")
+        LOG.warning(
+            "Alerts enabled but no notifiers configured; alerts will be disabled"
+        )
         return None
     return AlertManager(
         rules=alerts_cfg.rules,
@@ -166,7 +171,9 @@ def _build_notifiers(cfg: AlertsConfig) -> list[Notifier]:
     return notifiers
 
 
-def _is_out_of_bounds(value: float, min_value: float | None, max_value: float | None) -> bool:
+def _is_out_of_bounds(
+    value: float, min_value: float | None, max_value: float | None
+) -> bool:
     if min_value is not None and value < min_value:
         return True
     if max_value is not None and value > max_value:
@@ -182,6 +189,9 @@ def _build_email_body(event: AlertEvent, max_emails_per_day: int) -> str:
     range_with_unit = f"min={min_text} max={max_text} {unit}".strip()
     return (
         "Liqmon detected an out-of-range instrument reading.\n\n"
+        "System context:\n"
+        "- This alert is for the ADR Cryostat in the West Cryostat Hall.\n"
+        "- Diagnostic information below is from the Cryomech Helium Reliquefier.\n\n"
         f"Device: {event.device_id}\n"
         f"Metric: {event.measurement.metric}\n"
         f"Observed value: {value_with_unit}\n"
