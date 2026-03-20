@@ -4,6 +4,7 @@
 
 - `collector/`: polls instruments over serial or TCP and appends normalized rows to CSV.
 - `dashboard/`: a Dash + Plotly web app that reads the CSV and updates charts live.
+- CLI entrypoints: `liqmon-collector` and `liqmon-dashboard`.
 
 ## Project layout
 
@@ -15,7 +16,7 @@
 
 ## How it works
 
-1. `collector` loads a TOML config (`liqmon.toml`) describing devices and connection settings.
+1. `collector` loads a TOML config (`monitor.toml`) describing devices and connection settings.
 2. It opens all configured transports, polls each device on its own interval, and appends measurements to `data/readings.csv`.
 3. `dashboard` reads that CSV on a timer and renders dedicated plots for temperature (SCM10), pressure + heater power (HRC110), and CPA1114 low/high pressure.
 
@@ -40,9 +41,9 @@ CSV columns written by `collector`:
 
 ```bash
 cd collector
-cp liqmon.example.toml liqmon.toml
-# edit liqmon.toml for your environment
-uv run liqmon --config liqmon.toml
+cp monitor.example.toml monitor.toml
+# edit monitor.toml for your environment
+uv run liqmon-collector --config monitor.toml
 ```
 
 Key config fields:
@@ -90,11 +91,28 @@ Useful flags:
 - `--port` (default `8050`)
 - `--interval-ms` refresh interval (default `2000`)
 
+## Packaging note
+
+Both subprojects are configured as packages so `uv` can install stable CLI entrypoints from
+`[project.scripts]` in each `pyproject.toml`:
+
+- `liqmon-collector`
+- `liqmon-dashboard`
+
+Why this is done:
+
+- Commands stay stable even if module filenames change.
+- New users run clear CLI names instead of file paths.
+- Standard packaging metadata makes build/install/release workflows possible later.
+
+After pulling dependency or packaging changes, run `uv sync` in each subproject once so
+entrypoints are installed.
+
 ## Typical workflow
 
 1. Start `collector` and verify `collector/data/readings.csv` is being updated.
 2. Start `dashboard` pointing at that CSV.
-3. Adjust poll intervals or device query/terminators in `collector/liqmon.toml` as needed for instrument behavior.
+3. Adjust poll intervals or device query/terminators in `collector/monitor.toml` as needed for instrument behavior.
 
 ## Package docs
 
@@ -108,3 +126,4 @@ Useful flags:
 - Timeout or parse errors: verify query command, terminators, and port/network access.
 - Empty dashboard: confirm CSV path and that collector is writing non-empty rows.
 - Alerts not sending: verify SMTP settings and ensure `password_env` is exported in the shell/session running collector.
+- `Failed to spawn` for a CLI command: run `uv sync` inside the corresponding subproject.

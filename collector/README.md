@@ -19,8 +19,10 @@ CPA1114 metrics written to CSV:
 2. Run:
 
 ```bash
-uv run liqmon --config monitor.toml
+uv run liqmon-collector --config monitor.toml
 ```
+
+If this command is not found, run `uv sync` in `collector/` once to install the packaged CLI entrypoint.
 
 ## Output format
 

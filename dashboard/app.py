@@ -40,7 +40,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _empty_frame() -> pd.DataFrame:
-    return pd.DataFrame(columns=["timestamp", "metric", "value"])
+    return pd.DataFrame(columns=["timestamp", "metric", "value", "unit"])
 
 
 def _load_data(path: str) -> pd.DataFrame:
@@ -61,13 +61,31 @@ def _load_data(path: str) -> pd.DataFrame:
     return df
 
 
+def _metric_unit(df: pd.DataFrame, metric: str, fallback: str = "") -> str:
+    if "unit" not in df.columns:
+        return fallback
+    metric_df = df[df["metric"] == metric]
+    if metric_df.empty:
+        return fallback
+    units = metric_df["unit"].dropna().astype(str).str.strip()
+    units = units[units != ""]
+    if units.empty:
+        return fallback
+    return units.iloc[0]
+
+
+def _label_with_unit(label: str, unit: str) -> str:
+    return f"{label} ({unit})" if unit else label
+
+
 def _make_temperature_figure(df: pd.DataFrame):
+    temp_unit = _metric_unit(df, "temperature", "K")
     if df.empty:
         fig = px.line()
         fig.update_layout(
             title="No data yet",
             xaxis_title="timestamp",
-            yaxis_title="value",
+            yaxis_title=_label_with_unit("temperature", temp_unit),
             uirevision="keep",
         )
         return fig
@@ -77,7 +95,7 @@ def _make_temperature_figure(df: pd.DataFrame):
         fig.update_layout(
             title="No temperature data yet",
             xaxis_title="timestamp",
-            yaxis_title="temperature",
+            yaxis_title=_label_with_unit("temperature", temp_unit),
             uirevision="keep",
         )
         return fig
@@ -85,7 +103,7 @@ def _make_temperature_figure(df: pd.DataFrame):
     fig.update_layout(
         title="Temperature",
         xaxis_title="timestamp",
-        yaxis_title="temperature",
+        yaxis_title=_label_with_unit("temperature", temp_unit),
         uirevision="keep",
         showlegend=False,
     )
@@ -93,6 +111,8 @@ def _make_temperature_figure(df: pd.DataFrame):
 
 
 def _make_pressure_heater_figure(df: pd.DataFrame):
+    pressure_unit = _metric_unit(df, "pressure")
+    heater_unit = _metric_unit(df, "heater_power", "W")
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.update_layout(
         title="Pressure + Heater Power",
@@ -100,8 +120,12 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
         uirevision="keep",
     )
     if df.empty:
-        fig.update_yaxes(title_text="pressure", secondary_y=False)
-        fig.update_yaxes(title_text="heater_power", secondary_y=True)
+        fig.update_yaxes(
+            title_text=_label_with_unit("pressure", pressure_unit), secondary_y=False
+        )
+        fig.update_yaxes(
+            title_text=_label_with_unit("heater power", heater_unit), secondary_y=True
+        )
         return fig
     pressure = df[df["metric"] == "pressure"]
     heater = df[df["metric"] == "heater_power"]
@@ -125,17 +149,24 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
             ),
             secondary_y=True,
         )
-    fig.update_yaxes(title_text="pressure", secondary_y=False)
-    fig.update_yaxes(title_text="heater_power", secondary_y=True)
+    fig.update_yaxes(
+        title_text=_label_with_unit("pressure", pressure_unit), secondary_y=False
+    )
+    fig.update_yaxes(
+        title_text=_label_with_unit("heater power", heater_unit), secondary_y=True
+    )
     return fig
 
 
 def _make_cpa_pressures_figure(df: pd.DataFrame):
+    low_unit = _metric_unit(df, "low_pressure")
+    high_unit = _metric_unit(df, "high_pressure")
+    cpa_unit = low_unit or high_unit
     fig = px.line()
     fig.update_layout(
         title="CPA1114 Pressures",
         xaxis_title="timestamp",
-        yaxis_title="pressure",
+        yaxis_title=_label_with_unit("pressure", cpa_unit),
         uirevision="keep",
     )
     if df.empty:
@@ -150,7 +181,7 @@ def _make_cpa_pressures_figure(df: pd.DataFrame):
     fig.update_layout(
         title="CPA1114 Pressures",
         xaxis_title="timestamp",
-        yaxis_title="pressure",
+        yaxis_title=_label_with_unit("pressure", cpa_unit),
         uirevision="keep",
         legend_title_text="metric",
     )

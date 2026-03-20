@@ -16,6 +16,10 @@ uv run liqmon-dashboard --csv ../collector/data/readings.csv
 
 Then open `http://127.0.0.1:8050`.
 
+You can also run `uv run app.py --csv ../collector/data/readings.csv`, but
+`uv run liqmon-dashboard ...` is the packaged entrypoint defined in `pyproject.toml`.
+If this command is not found, run `uv sync` in `dashboard/` once.
+
 Useful flags:
 
 - `--host` (default `127.0.0.1`)
