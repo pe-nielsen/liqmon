@@ -34,9 +34,20 @@ def _build_tasks(cfg: AppConfig) -> list[DeviceTask]:
         device = build_device(device_cfg)
         output_path = device_cfg.output or cfg.global_config.output
         sink = CsvSink(output_path)
-        interval_s = device_cfg.interval_s or cfg.global_config.interval_s
+        interval_s = _task_interval_s(device_cfg, cfg.global_config.interval_s)
         tasks.append(DeviceTask(device=device, interval_s=interval_s, sink=sink))
     return tasks
+
+
+def _task_interval_s(device_cfg, global_interval_s: int) -> int:
+    measurement_interval_s = device_cfg.settings.get("measurement_interval_s")
+    if measurement_interval_s is not None:
+        interval_s = int(measurement_interval_s)
+    else:
+        interval_s = device_cfg.interval_s or global_interval_s
+    if interval_s < 1:
+        raise ValueError(f"Poll interval for {device_cfg.id!r} must be >= 1 second")
+    return interval_s
 
 
 def main(argv: list[str] | None = None) -> int:

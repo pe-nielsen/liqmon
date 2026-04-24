@@ -7,11 +7,19 @@ Supported device types:
 - `scm10` (temperature)
 - `hrc110` (pressure and heater power)
 - `cpa1114` (low/high compressor pressure via Modbus TCP)
+- `helium_level` (Agilent E3647A heater PSU + Keithley 2000 4-wire resistance)
 
 CPA1114 metrics written to CSV:
 
 - `low_pressure`
 - `high_pressure`
+
+Helium level metrics written to CSV:
+
+- `psu_voltage` (only when `heater_enabled = true`)
+- `psu_current` (only when `heater_enabled = true`)
+- `resistance_average`
+- `liquid_helium_level`
 
 ## Quick start
 
@@ -42,6 +50,33 @@ Each measurement is a separate row, so devices that return multiple values (like
 - Device-specific command strings and terminators can be overridden per device.
 - `cpa1114` supports `unit_id` (default `16`) and uses TCP port `502` by default.
 - Set the TCP host/port and serial parameters to match each instrument.
+- `helium_level` uses `measurement_interval_s` instead of the global interval. With `heater_enabled = true`, it sets the PSU voltage/current limits, verifies them, briefly turns the output on, records PSU voltage/current, turns the PSU output off, and switches the Keithley back to DC voltage mode after each measurement attempt. With `heater_enabled = false`, it skips all PSU setup/output/current-voltage reads; `psu_port` can be omitted.
+- `liquid_helium_level` is calculated as `total_sensor_length_cm - resistance_average / normal_state_linear_resistivity_ohm_per_cm`.
+
+Example helium level configuration:
+
+```toml
+[[devices]]
+id = "helium-level"
+type = "helium_level"
+transport = "serial"
+measurement_interval_s = 3600
+heater_enabled = true
+total_sensor_length_cm = 140.0
+normal_state_linear_resistivity_ohm_per_cm = 0.436
+psu_port = "/dev/cu.usbserial-PSU"
+dmm_port = "/dev/cu.usbserial-DMM"
+psu_baudrate = 9600
+dmm_baudrate = 9600
+psu_channel = "OUT1"
+psu_voltage_limit_v = 10.0
+psu_current_limit_a = 0.1
+dmm_range_ohm = 100.0
+dmm_nplc = 1.0
+resistance_readings = 3
+reading_delay_s = 0.1
+output_settle_s = 0.2
+```
 
 ## Email alerts
 

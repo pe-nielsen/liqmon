@@ -2,11 +2,16 @@
 
 Minimal Dash + Plotly app that plots `readings.csv` live.
 
+CSV timestamps are parsed from the timezone recorded in the file and displayed
+in the timezone of the computer running the dashboard, including daylight-saving
+time where the local timezone database provides it.
+
 ## What it shows
 
 - Temperature (`metric = temperature`)
 - HRC110 pressure + heater power (`pressure`, `heater_power`)
 - CPA1114 low/high pressures (`low_pressure`, `high_pressure`)
+- Liquid helium sensor resistance + calculated level (`resistance_average`, `liquid_helium_level`)
 
 ## Run
 

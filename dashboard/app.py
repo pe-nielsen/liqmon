@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from datetime import datetime, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import dash
 import pandas as pd
@@ -10,6 +12,9 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from dash import Input, Output, dcc, html
+
+
+_LOCAL_TIMEZONE = None
 
 
 def _parse_args() -> argparse.Namespace:
@@ -43,6 +48,45 @@ def _empty_frame() -> pd.DataFrame:
     return pd.DataFrame(columns=["timestamp", "metric", "value", "unit"])
 
 
+def _local_timezone() -> tzinfo:
+    timezone_name = os.environ.get("TZ")
+    if timezone_name:
+        try:
+            return ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            pass
+
+    localtime_path = Path("/etc/localtime")
+    try:
+        resolved = localtime_path.resolve()
+    except OSError:
+        resolved = localtime_path
+
+    parts = resolved.parts
+    if "zoneinfo" in parts:
+        zoneinfo_index = parts.index("zoneinfo")
+        timezone_name = "/".join(parts[zoneinfo_index + 1 :])
+        if timezone_name:
+            try:
+                return ZoneInfo(timezone_name)
+            except ZoneInfoNotFoundError:
+                pass
+
+    return datetime.now().astimezone().tzinfo or ZoneInfo("Europe/London")
+
+
+def _timezone_label(timezone: tzinfo) -> str:
+    key = getattr(timezone, "key", None)
+    if key:
+        return str(key)
+    return datetime.now(timezone).tzname() or "local time"
+
+
+def _set_local_timezone(timezone: tzinfo) -> None:
+    global _LOCAL_TIMEZONE
+    _LOCAL_TIMEZONE = timezone
+
+
 def _load_data(path: str) -> pd.DataFrame:
     csv_path = Path(path)
     if not csv_path.exists():
@@ -56,15 +100,24 @@ def _load_data(path: str) -> pd.DataFrame:
     if "timestamp" not in df.columns or "metric" not in df.columns or "value" not in df.columns:
         return _empty_frame()
     df = df.copy()
-    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
     df = df.dropna(subset=["timestamp"])
+    timezone = _LOCAL_TIMEZONE or _local_timezone()
+    df["timestamp"] = df["timestamp"].dt.tz_convert(timezone).dt.tz_localize(None)
     return df
 
 
-def _metric_unit(df: pd.DataFrame, metric: str, fallback: str = "") -> str:
+def _metric_unit(
+    df: pd.DataFrame,
+    metric: str,
+    fallback: str = "",
+    device_id: str | None = None,
+) -> str:
     if "unit" not in df.columns:
         return fallback
     metric_df = df[df["metric"] == metric]
+    if device_id is not None and "device_id" in metric_df.columns:
+        metric_df = metric_df[metric_df["device_id"] == device_id]
     if metric_df.empty:
         return fallback
     units = metric_df["unit"].dropna().astype(str).str.strip()
@@ -188,8 +241,71 @@ def _make_cpa_pressures_figure(df: pd.DataFrame):
     return fig
 
 
+def _make_helium_level_figure(df: pd.DataFrame):
+    resistance_unit = _metric_unit(
+        df, "resistance_average", "ohm", device_id="helium-level"
+    )
+    level_unit = _metric_unit(
+        df, "liquid_helium_level", "cm", device_id="helium-level"
+    )
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.update_layout(
+        title="Liquid Helium Level",
+        xaxis_title="timestamp",
+        uirevision="keep",
+        legend_title_text="metric",
+    )
+    fig.update_yaxes(
+        title_text=_label_with_unit("sensor resistance", resistance_unit),
+        secondary_y=False,
+    )
+    fig.update_yaxes(
+        title_text=_label_with_unit("liquid helium level", level_unit),
+        secondary_y=True,
+    )
+    if df.empty:
+        return fig
+
+    helium = df[df["metric"].isin(["resistance_average", "liquid_helium_level"])]
+    if "device_id" in helium.columns:
+        helium = helium[helium["device_id"] == "helium-level"]
+    if helium.empty:
+        fig.update_layout(title="No liquid helium level data yet")
+        return fig
+
+    resistance = helium[helium["metric"] == "resistance_average"]
+    level = helium[helium["metric"] == "liquid_helium_level"]
+    if not resistance.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=resistance["timestamp"],
+                y=resistance["value"],
+                name="sensor resistance",
+                mode="lines+markers",
+                line={"color": "#6f4e7c", "width": 2},
+                marker={"size": 5},
+            ),
+            secondary_y=False,
+        )
+    if not level.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=level["timestamp"],
+                y=level["value"],
+                name="liquid helium level",
+                mode="lines+markers",
+                line={"color": "#16836f", "width": 2},
+                marker={"size": 5},
+            ),
+            secondary_y=True,
+        )
+    return fig
+
+
 def main() -> None:
     args = _parse_args()
+    timezone = _local_timezone()
+    _set_local_timezone(timezone)
 
     app = dash.Dash(__name__)
     app.index_string = """<!DOCTYPE html>
@@ -278,7 +394,10 @@ def main() -> None:
                 children=[
                     html.Div("liqmon live readings", className="title"),
                     html.Div(
-                        f"source: {args.csv} · refresh: {args.interval_ms} ms",
+                        (
+                            f"source: {args.csv} · refresh: {args.interval_ms} ms · "
+                            f"timezone: {_timezone_label(timezone)}"
+                        ),
                         className="subtitle",
                     ),
                 ],
@@ -289,6 +408,7 @@ def main() -> None:
                     html.Div(dcc.Graph(id="temp-graph"), className="card"),
                     html.Div(dcc.Graph(id="pressure-graph"), className="card"),
                     html.Div(dcc.Graph(id="cpa-pressure-graph"), className="card"),
+                    html.Div(dcc.Graph(id="helium-level-graph"), className="card"),
                 ],
             ),
             dcc.Interval(id="interval", interval=args.interval_ms, n_intervals=0),
@@ -299,6 +419,7 @@ def main() -> None:
         Output("temp-graph", "figure"),
         Output("pressure-graph", "figure"),
         Output("cpa-pressure-graph", "figure"),
+        Output("helium-level-graph", "figure"),
         Input("interval", "n_intervals"),
     )
     def _update(_):
@@ -307,6 +428,7 @@ def main() -> None:
             _make_temperature_figure(df),
             _make_pressure_heater_figure(df),
             _make_cpa_pressures_figure(df),
+            _make_helium_level_figure(df),
         )
 
     app.run(host=args.host, port=args.port, debug=False)

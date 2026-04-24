@@ -66,3 +66,28 @@ transport = "tcp"
 host = "192.168.0.111"
 port = 502
 # unit_id = 16
+
+# Liquid helium level meter readout. This logical device controls both the
+# Agilent E3647A PSU and the Keithley 2000 DMM over separate serial adapters.
+[[devices]]
+id = "helium-level"
+type = "helium_level"
+transport = "serial"
+measurement_interval_s = 3600
+heater_enabled = true
+total_sensor_length_cm = 140.0
+normal_state_linear_resistivity_ohm_per_cm = 0.436
+psu_port = "/dev/cu.usbserial-PSU"
+dmm_port = "/dev/cu.usbserial-DMM"
+psu_baudrate = 9600
+dmm_baudrate = 9600
+# Optional if the Keithley serial output terminator differs from the default.
+# dmm_read_terminators = ["\r\n", "\n", "\r"]
+psu_channel = "OUT1"
+psu_voltage_limit_v = 10.0
+psu_current_limit_a = 0.1
+dmm_range_ohm = 100.0
+dmm_nplc = 1.0
+resistance_readings = 3
+reading_delay_s = 0.1
+output_settle_s = 0.2

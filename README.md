@@ -18,7 +18,8 @@
 
 1. `collector` loads a TOML config (`monitor.toml`) describing devices and connection settings.
 2. It opens all configured transports, polls each device on its own interval, and appends measurements to `data/readings.csv`.
-3. `dashboard` reads that CSV on a timer and renders dedicated plots for temperature (SCM10), pressure + heater power (HRC110), and CPA1114 low/high pressure.
+3. The liquid helium level meter readout, when enabled, controls the Agilent E3647A PSU and Keithley 2000 DMM as one logical device and writes PSU voltage/current plus average 4-wire resistance.
+4. `dashboard` reads that CSV on a timer and renders dedicated plots for temperature (SCM10), pressure + heater power (HRC110), CPA1114 low/high pressure, and liquid helium resistance + level.
 
 CSV columns written by `collector`:
 
@@ -53,9 +54,10 @@ Key config fields:
 - `output`: CSV path (default `data/readings.csv`)
 - `utc`: write timestamps in UTC when `true`
 - `[[devices]]`
-- required: `id`, `type` (`scm10`/`hrc110`/`cpa1114`), `transport` (`serial`/`tcp`)
+- required: `id`, `type` (`scm10`/`hrc110`/`cpa1114`/`helium_level`), `transport` (`serial`/`tcp`)
 - transport-specific: serial needs `port`; tcp needs `host` and `port`
 - optional: per-device `interval_s`, `output`, `query`, `write_terminator`, `read_terminators`, `unit_id`
+- `helium_level`: use `measurement_interval_s`, `heater_enabled`, `total_sensor_length_cm`, `normal_state_linear_resistivity_ohm_per_cm`, `dmm_port`, optional `psu_port` when the heater is enabled, `resistance_readings`, and optional PSU/DMM serial and measurement settings
 - optional: `[alerts]` + `[alerts.email]` + `[[alerts.rules]]` for threshold email notifications
 
 Minimal example:
