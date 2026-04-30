@@ -80,6 +80,9 @@ normal_state_linear_resistivity_ohm_per_cm = 0.436
 psu_port = "/dev/cu.usbserial-PSU"
 dmm_port = "/dev/cu.usbserial-DMM"
 psu_baudrate = 9600
+psu_rtscts = false
+psu dsrdtr = false
+psu_write_terminator = "\r\n"
 dmm_baudrate = 9600
 # Optional if the Keithley serial output terminator differs from the default.
 # dmm_read_terminators = ["\r\n", "\n", "\r"]
