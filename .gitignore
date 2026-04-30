@@ -6,6 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# macOS metadata
+.DS_Store
+
 # Virtual environments
 .venv
 
@@ -13,3 +16,9 @@ wheels/
 collector/data/readings.csv
 
 collector/monitor.toml
+
+
+# Local development scripts
+scratch/*
+collector/scratch/*
+dashboard/scratch/*
