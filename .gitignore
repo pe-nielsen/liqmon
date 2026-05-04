@@ -6,8 +6,9 @@ dist/
 wheels/
 *.egg-info
 
-# macOS metadata
+# metadata
 .DS_Store
+*.code-workspace
 
 # Virtual environments
 .venv
