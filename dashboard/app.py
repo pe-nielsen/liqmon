@@ -32,9 +32,15 @@ _SUMMARY_METRICS = [
     ("high_pressure", "high pressure", "", None),
 ]
 _HELIUM_LEVEL_GUIDES_CM = [
-    (14.0, "Magnet 1 Top (Sample)"),
-    (35.0, "Magnet 2 Top (ADR2)"),
-    (71.0, "Magnet 3 Top (ADR1)"),
+    (14.0, "Sample Magnet"),
+    (35.0, "2nd Refrigeration Magnet"),
+    (71.0, "1st Refrigeration Magnet"),
+]
+_DASHBOARD_TABS = [
+    ("lhe-diagnostics", "LHe Diagnostics"),
+    ("magnet-control", "Magnet Control"),
+    ("probe-diagnostics", "Probe Diagnostics"),
+    ("experimental", "Experimental"),
 ]
 
 
@@ -201,9 +207,7 @@ def _apply_visible_y_ranges(fig, bounds: list[datetime] | None) -> None:
         return
 
     axis_layout_names = {"y": "yaxis"}
-    axis_layout_names.update(
-        {f"y{index}": f"yaxis{index}" for index in range(2, 10)}
-    )
+    axis_layout_names.update({f"y{index}": f"yaxis{index}" for index in range(2, 10)})
     for axis, values in values_by_axis.items():
         axis_layout_name = axis_layout_names.get(axis)
         if axis_layout_name is None or not hasattr(fig.layout, axis_layout_name):
@@ -647,6 +651,105 @@ def _add_helium_level_guides(fig, level: pd.DataFrame) -> None:
         )
 
 
+def _make_layout(args: argparse.Namespace, timezone: tzinfo) -> html.Div:
+    return html.Div(
+        className="page",
+        children=[
+            html.Div(
+                className="header",
+                children=[
+                    html.Div("liqmon", className="title"),
+                    html.Div(
+                        (
+                            f"refresh: {args.interval_ms} ms · "
+                            f"timezone: {_timezone_label(timezone)}"
+                        ),
+                        className="subtitle",
+                    ),
+                ],
+            ),
+            dcc.Tabs(
+                id="main-tabs",
+                value="lhe-diagnostics",
+                className="main-tabs",
+                parent_className="tabs-wrap",
+                children=[
+                    dcc.Tab(
+                        label=label,
+                        value=value,
+                        className="main-tab",
+                        selected_className="main-tab selected",
+                        children=_make_tab_content(value),
+                    )
+                    for value, label in _DASHBOARD_TABS
+                ],
+            ),
+            dcc.Interval(id="interval", interval=args.interval_ms, n_intervals=0),
+        ],
+    )
+
+
+def _make_tab_content(tab_id: str):
+    if tab_id == "lhe-diagnostics":
+        return _make_lhe_diagnostics_tab()
+    return _make_placeholder_tab(tab_id)
+
+
+def _make_lhe_diagnostics_tab() -> html.Div:
+    return html.Div(
+        className="tab-panel",
+        children=[
+            html.Div(
+                className="top-panel",
+                children=[
+                    html.Div(id="summary-cards", className="summary-grid"),
+                    html.Div(
+                        className="controls-row",
+                        children=[
+                            dcc.RadioItems(
+                                id="time-range",
+                                className="range-control",
+                                options=[
+                                    {"label": label, "value": value}
+                                    for value, (label, _window) in _TIME_RANGES.items()
+                                ],
+                                value="24h",
+                                inline=True,
+                            ),
+                            html.Div(id="csv-status"),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="grid",
+                children=[
+                    html.Div(dcc.Graph(id="temp-graph"), className="card"),
+                    html.Div(dcc.Graph(id="pressure-graph"), className="card"),
+                    html.Div(dcc.Graph(id="cpa-pressure-graph"), className="card"),
+                    html.Div(dcc.Graph(id="helium-level-graph"), className="card"),
+                ],
+            ),
+        ],
+    )
+
+
+def _make_placeholder_tab(tab_id: str) -> html.Div:
+    labels = dict(_DASHBOARD_TABS)
+    return html.Div(
+        className="tab-panel",
+        children=[
+            html.Div(
+                className="placeholder-panel",
+                children=[
+                    html.Div(labels.get(tab_id, tab_id), className="placeholder-title"),
+                    html.Div("Interface not configured yet.", className="placeholder-copy"),
+                ],
+            )
+        ],
+    )
+
+
 def main() -> None:
     args = _parse_args()
     timezone = _local_timezone()
@@ -688,7 +791,7 @@ def main() -> None:
                 display: flex;
                 flex-direction: column;
                 gap: 6px;
-                margin-bottom: 20px;
+                margin-bottom: 16px;
                 animation: fadeIn 500ms ease-out;
             }
             .title {
@@ -700,6 +803,37 @@ def main() -> None:
                 color: var(--muted);
                 font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
                 font-size: 13px;
+            }
+            .tabs-wrap {
+                margin-bottom: 18px;
+            }
+            .main-tabs {
+                display: flex;
+                gap: 6px;
+                padding: 4px;
+                background: #edf1f5;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                overflow-x: auto;
+            }
+            .main-tabs .tab {
+                border: 0;
+                border-radius: 7px;
+                background: transparent;
+                padding: 10px 14px;
+                color: #3d4652;
+                font-size: 14px;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+            .main-tabs .tab--selected,
+            .main-tabs .selected {
+                color: var(--ink);
+                background: var(--card);
+                box-shadow: 0 1px 4px rgba(20, 32, 46, 0.12);
+            }
+            .tab-panel {
+                animation: fadeIn 240ms ease-out;
             }
             .top-panel {
                 display: flex;
@@ -828,6 +962,26 @@ def main() -> None:
                 padding: 12px 14px 6px;
                 box-shadow: 0 4px 16px rgba(16, 24, 40, 0.05);
             }
+            .placeholder-panel {
+                min-height: 260px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 28px;
+                box-shadow: 0 4px 16px rgba(16, 24, 40, 0.05);
+            }
+            .placeholder-title {
+                font-size: 22px;
+                font-weight: 600;
+            }
+            .placeholder-copy {
+                margin-top: 8px;
+                color: var(--muted);
+                font-size: 14px;
+            }
             @media (min-width: 900px) {
                 .grid {
                     grid-template-columns: 1fr 1fr;
@@ -849,6 +1003,11 @@ def main() -> None:
                     justify-content: center;
                     padding: 0 8px;
                 }
+                .main-tabs .tab {
+                    flex: 0 0 auto;
+                    padding: 9px 11px;
+                    font-size: 13px;
+                }
             }
             @keyframes fadeIn {
                 from { opacity: 0; transform: translateY(6px); }
@@ -865,56 +1024,7 @@ def main() -> None:
         </footer>
     </body>
 </html>"""
-    app.layout = html.Div(
-        className="page",
-        children=[
-            html.Div(
-                className="header",
-                children=[
-                    html.Div("liqmon live readings", className="title"),
-                    html.Div(
-                        (
-                            f"refresh: {args.interval_ms} ms · "
-                            f"timezone: {_timezone_label(timezone)}"
-                        ),
-                        className="subtitle",
-                    ),
-                ],
-            ),
-            html.Div(
-                className="top-panel",
-                children=[
-                    html.Div(id="summary-cards", className="summary-grid"),
-                    html.Div(
-                        className="controls-row",
-                        children=[
-                            dcc.RadioItems(
-                                id="time-range",
-                                className="range-control",
-                                options=[
-                                    {"label": label, "value": value}
-                                    for value, (label, _window) in _TIME_RANGES.items()
-                                ],
-                                value="24h",
-                                inline=True,
-                            ),
-                            html.Div(id="csv-status"),
-                        ],
-                    ),
-                ],
-            ),
-            html.Div(
-                className="grid",
-                children=[
-                    html.Div(dcc.Graph(id="temp-graph"), className="card"),
-                    html.Div(dcc.Graph(id="pressure-graph"), className="card"),
-                    html.Div(dcc.Graph(id="cpa-pressure-graph"), className="card"),
-                    html.Div(dcc.Graph(id="helium-level-graph"), className="card"),
-                ],
-            ),
-            dcc.Interval(id="interval", interval=args.interval_ms, n_intervals=0),
-        ],
-    )
+    app.layout = _make_layout(args, timezone)
 
     @app.callback(
         Output("summary-cards", "children"),
