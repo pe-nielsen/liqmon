@@ -915,6 +915,17 @@ def main() -> None:
                 padding: 12px 14px 6px;
                 box-shadow: 0 4px 16px rgba(16, 24, 40, 0.05);
             }
+            .page-footer {
+                margin-top: 24px;
+                color: var(--muted);
+                font-size: 12px;
+                text-align: center;
+            }
+            .page-footer a {
+                color: inherit;
+                text-decoration: underline;
+                text-underline-offset: 2px;
+            }
             @media (min-width: 900px) {
                 .grid {
                     grid-template-columns: 1fr 1fr;
@@ -999,6 +1010,19 @@ def main() -> None:
                     html.Div(dcc.Graph(id="pressure-graph"), className="card"),
                     html.Div(dcc.Graph(id="cpa-pressure-graph"), className="card"),
                     html.Div(dcc.Graph(id="helium-level-graph"), className="card"),
+                ],
+            ),
+            html.Div(
+                className="page-footer",
+                children=[
+                    "Software by ",
+                    html.A(
+                        "Pétur Einarsson",
+                        href="https://github.com/pe-nielsen",
+                        target="_blank",
+                        rel="noopener noreferrer",
+                    ),
+                    ".",
                 ],
             ),
             dcc.Interval(id="interval", interval=args.interval_ms, n_intervals=0),
