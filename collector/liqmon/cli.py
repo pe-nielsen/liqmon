@@ -11,6 +11,9 @@ from .poller import DeviceTask, Poller
 from .storage import CsvSink
 
 
+LOG = logging.getLogger("liqmon.cli")
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Poll multiple lab instruments and append readings to CSV.",
@@ -35,7 +38,14 @@ def _build_tasks(cfg: AppConfig) -> list[DeviceTask]:
         output_path = device_cfg.output or cfg.global_config.output
         sink = CsvSink(output_path)
         interval_s = _task_interval_s(device_cfg, cfg.global_config.interval_s)
-        tasks.append(DeviceTask(device=device, interval_s=interval_s, sink=sink))
+        tasks.append(
+            DeviceTask(
+                device=device,
+                interval_s=interval_s,
+                sink=sink,
+                connection_label=_connection_label(device_cfg),
+            )
+        )
     return tasks
 
 
@@ -50,6 +60,43 @@ def _task_interval_s(device_cfg, global_interval_s: int) -> int:
     return interval_s
 
 
+def _connection_label(device_cfg) -> str:
+    settings = device_cfg.settings
+    if device_cfg.type.lower() in {"helium_level", "helium-level"}:
+        parts = []
+        dmm_port = settings.get("dmm_port")
+        psu_port = settings.get("psu_port")
+        if dmm_port:
+            parts.append(f"DMM serial port {dmm_port}")
+        if psu_port:
+            parts.append(f"PSU serial port {psu_port}")
+        return ", ".join(parts) or "serial instruments"
+    if device_cfg.transport == "serial":
+        return f"serial port {settings.get('port', '<unset>')}"
+    if device_cfg.transport == "tcp":
+        return f"{settings.get('host', '<unset>')}:{settings.get('port', '<unset>')}"
+    return device_cfg.transport
+
+
+def _log_startup_summary(
+    cfg: AppConfig, tasks: list[DeviceTask], alert_manager
+) -> None:
+    LOG.info("Collector starting")
+    LOG.info(
+        "Timestamps: %s",
+        "UTC" if cfg.global_config.utc else "local timezone with offset",
+    )
+    LOG.info("Alerts: %s", "enabled" if alert_manager is not None else "disabled")
+    for task in tasks:
+        LOG.info(
+            "Device %s: every %ss, %s, writing to %s",
+            task.device.id,
+            task.interval_s,
+            task.connection_label,
+            task.sink.path,
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
     logging.basicConfig(
@@ -60,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     config = load_config(args.config)
     tasks = _build_tasks(config)
     alert_manager = build_alert_manager(config)
+    _log_startup_summary(config, tasks, alert_manager)
     poller = Poller(tasks, use_utc=config.global_config.utc, alert_manager=alert_manager)
     poller.run()
     return 0

@@ -18,6 +18,7 @@ class DeviceTask:
     device: Device
     interval_s: int
     sink: CsvSink
+    connection_label: str
     next_poll: float = 0.0
 
 
@@ -35,8 +36,8 @@ class Poller:
     def run(self) -> None:
         if not self._tasks:
             raise ValueError("No device tasks configured")
-        self._open_all()
         try:
+            self._open_all()
             now = time.monotonic()
             for task in self._tasks:
                 task.next_poll = now
@@ -62,7 +63,13 @@ class Poller:
                 self._alert_manager.evaluate(timestamp, task.device.id, measurements)
             LOG.info("Recorded %s measurements from %s", len(measurements), task.device.id)
         except Exception:
-            LOG.exception("Poll failed for %s", task.device.id)
+            LOG.exception(
+                "Poll failed for %s using %s. Check the instrument is powered on, "
+                "connected, and that monitor.toml has the correct serial port or "
+                "network address.",
+                task.device.id,
+                task.connection_label,
+            )
 
     def _timestamp(self) -> datetime:
         if self._use_utc:
@@ -71,8 +78,20 @@ class Poller:
 
     def _open_all(self) -> None:
         for task in self._tasks:
-            task.device.open()
+            try:
+                LOG.info("Opening %s using %s", task.device.id, task.connection_label)
+                task.device.open()
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Could not connect to {task.device.id} using "
+                    f"{task.connection_label}. Check the instrument is powered on, "
+                    "connected, and that monitor.toml has the correct serial port "
+                    "or network address."
+                ) from exc
 
     def _close_all(self) -> None:
         for task in self._tasks:
-            task.device.close()
+            try:
+                task.device.close()
+            except Exception:
+                LOG.exception("Failed to close %s cleanly", task.device.id)

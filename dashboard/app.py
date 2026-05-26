@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections import deque
 from datetime import datetime, tzinfo
+from io import StringIO
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -15,6 +17,7 @@ from dash import Input, Output, dcc, html
 from plotly.subplots import make_subplots
 
 _LOCAL_TIMEZONE = None
+_DEFAULT_MAX_CSV_ROWS = 100_000
 _TIME_RANGES = {
     "1h": ("1h", pd.Timedelta(hours=1)),
     "6h": ("6h", pd.Timedelta(hours=6)),
@@ -36,6 +39,15 @@ _HELIUM_LEVEL_GUIDES_CM = [
     (35.0, "Second refrigeration magnet", "dash"),
     (14.0, "Sample magnet", "dashdot"),
 ]
+_METRIC_LABELS = {
+    "heater_power": "Heater power",
+    "high_pressure": "High pressure",
+    "low_pressure": "Low pressure",
+    "liquid_helium_level": "Liquid helium level",
+    "pressure": "Pressure",
+    "resistance_average": "Sensor resistance",
+    "temperature": "Temperature",
+}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -67,6 +79,17 @@ def _parse_args() -> argparse.Namespace:
         default=10,
         type=float,
         help="Show a stale-data warning if the newest reading is older than this many minutes.",
+    )
+    parser.add_argument(
+        "--max-csv-rows",
+        default=int(
+            os.environ.get("LIQMON_DASHBOARD_MAX_CSV_ROWS", _DEFAULT_MAX_CSV_ROWS)
+        ),
+        type=int,
+        help=(
+            "Maximum number of recent CSV data rows to load into the dashboard. "
+            "Use 0 to disable the safety limit."
+        ),
     )
     return parser.parse_args()
 
@@ -114,32 +137,70 @@ def _set_local_timezone(timezone: tzinfo) -> None:
     _LOCAL_TIMEZONE = timezone
 
 
-def _load_data(path: str) -> pd.DataFrame:
+def _load_data(path: str, max_rows: int) -> tuple[pd.DataFrame, dict[str, Any]]:
     csv_path = Path(path)
+    load_info = {
+        "max_rows": max_rows,
+        "total_rows": 0,
+        "loaded_rows": 0,
+        "truncated": False,
+    }
     if not csv_path.exists():
-        return _empty_frame()
+        return _empty_frame(), load_info
     try:
-        df = pd.read_csv(csv_path)
+        df, load_info = _read_csv_tail(csv_path, max_rows)
     except pd.errors.EmptyDataError:
-        return _empty_frame()
+        return _empty_frame(), load_info
     if df.empty:
-        return _empty_frame()
+        return _empty_frame(), load_info
     if (
         "timestamp" not in df.columns
         or "metric" not in df.columns
         or "value" not in df.columns
     ):
-        return _empty_frame()
+        return _empty_frame(), load_info
     df = df.copy()
     df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
     df = df.dropna(subset=["timestamp"])
     timezone = _LOCAL_TIMEZONE or _local_timezone()
     df["timestamp"] = df["timestamp"].dt.tz_convert(timezone).dt.tz_localize(None)
-    return df
+    return df, load_info
+
+
+def _read_csv_tail(csv_path: Path, max_rows: int) -> tuple[pd.DataFrame, dict[str, Any]]:
+    if max_rows <= 0:
+        df = pd.read_csv(csv_path)
+        return df, {
+            "max_rows": max_rows,
+            "total_rows": len(df),
+            "loaded_rows": len(df),
+            "truncated": False,
+        }
+
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        header = handle.readline()
+        if not header:
+            raise pd.errors.EmptyDataError("No columns to parse from file")
+
+        tail = deque(maxlen=max_rows)
+        total_rows = 0
+        for line in handle:
+            total_rows += 1
+            tail.append(line)
+
+    loaded_rows = len(tail)
+    csv_text = header + "".join(tail)
+    df = pd.read_csv(StringIO(csv_text))
+    return df, {
+        "max_rows": max_rows,
+        "total_rows": total_rows,
+        "loaded_rows": loaded_rows,
+        "truncated": total_rows > loaded_rows,
+    }
 
 
 def _csv_status(
-    path: str, df: pd.DataFrame, stale_after_minutes: float
+    path: str, df: pd.DataFrame, stale_after_minutes: float, load_info: dict[str, Any]
 ) -> dict[str, Any]:
     csv_path = Path(path)
     exists = csv_path.exists()
@@ -160,6 +221,10 @@ def _csv_status(
         "exists": exists,
         "size_bytes": size_bytes,
         "row_count": len(df),
+        "loaded_rows": load_info["loaded_rows"],
+        "total_rows": load_info["total_rows"],
+        "max_rows": load_info["max_rows"],
+        "truncated": load_info["truncated"],
         "latest": latest,
         "age": age,
         "is_stale": is_stale,
@@ -294,6 +359,10 @@ def _label_with_unit(label: str, unit: str) -> str:
     return f"{label} ({unit})" if unit else label
 
 
+def _metric_label(metric: str) -> str:
+    return _METRIC_LABELS.get(metric, metric.replace("_", " "))
+
+
 def _format_value(value: float) -> str:
     if pd.isna(value):
         return "--"
@@ -405,21 +474,28 @@ def _make_status(status: dict[str, Any], timezone: tzinfo) -> html.Div:
         if latest is not None and not pd.isna(latest)
         else "none"
     )
-    warning = None
+    warnings = []
     if not status["exists"]:
-        warning = "CSV file not found"
+        warnings.append("CSV file not found")
     elif status["is_stale"]:
-        warning = (
-            "No readings loaded"
-            if status["age"] is None
-            else f"No new data for {_format_duration(status['age'])}"
+        warnings.append(
+            (
+                "No readings loaded"
+                if status["age"] is None
+                else f"No new data for {_format_duration(status['age'])}"
+            )
+        )
+    if status["truncated"]:
+        warnings.append(
+            "Large CSV file: showing latest "
+            f"{status['loaded_rows']:,} of {status['total_rows']:,} rows"
         )
 
     return html.Div(
         className="status-wrap",
         children=[
             html.Div(
-                className=f"freshness {'stale' if warning else 'ok'}",
+                className=f"freshness {'stale' if warnings else 'ok'}",
                 children=[
                     html.Span("Last updated", className="status-label"),
                     html.Span(f"{latest_text} ({_timezone_label(timezone)})"),
@@ -428,12 +504,15 @@ def _make_status(status: dict[str, Any], timezone: tzinfo) -> html.Div:
                     ),
                 ],
             ),
-            html.Div(warning, className="stale-warning") if warning else None,
+            *[
+                html.Div(warning, className="stale-warning")
+                for warning in warnings
+            ],
             html.Div(
                 className="file-meta",
                 children=(
                     f"{status['path']} · {_format_bytes(status['size_bytes'])} · "
-                    f"{status['row_count']:,} rows"
+                    f"{status['row_count']:,} plotted rows"
                 ),
             ),
         ],
@@ -445,7 +524,7 @@ def _make_temperature_figure(df: pd.DataFrame):
     if df.empty:
         fig = px.line()
         fig.update_layout(
-            title="No data yet",
+            title="No liquefier cold head temperature data yet",
             xaxis_title="timestamp",
             yaxis_title=_label_with_unit("temperature", temp_unit),
             uirevision="keep",
@@ -455,7 +534,7 @@ def _make_temperature_figure(df: pd.DataFrame):
     if df.empty:
         fig = px.line()
         fig.update_layout(
-            title="No temperature data yet",
+            title="No liquefier cold head temperature data yet",
             xaxis_title="timestamp",
             yaxis_title=_label_with_unit("temperature", temp_unit),
             uirevision="keep",
@@ -482,6 +561,7 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
         uirevision="keep",
     )
     if df.empty:
+        fig.update_layout(title="No liquefier pressure or heater power data yet")
         fig.update_yaxes(
             title_text=_label_with_unit("pressure", pressure_unit), secondary_y=False
         )
@@ -491,12 +571,14 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
         return fig
     pressure = df[df["metric"] == "pressure"]
     heater = df[df["metric"] == "heater_power"]
+    if pressure.empty and heater.empty:
+        fig.update_layout(title="No liquefier pressure or heater power data yet")
     if not pressure.empty:
         fig.add_trace(
             go.Scatter(
                 x=pressure["timestamp"],
                 y=pressure["value"],
-                name="pressure",
+                name="Pressure",
                 mode="lines",
             ),
             secondary_y=False,
@@ -506,7 +588,7 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
             go.Scatter(
                 x=heater["timestamp"],
                 y=heater["value"],
-                name="heater_power",
+                name="Heater power",
                 mode="lines",
             ),
             secondary_y=True,
@@ -532,20 +614,23 @@ def _make_cpa_pressures_figure(df: pd.DataFrame):
         uirevision="keep",
     )
     if df.empty:
+        fig.update_layout(title="No compressor pressure data yet")
         return fig
 
     cpa = df[df["metric"].isin(["low_pressure", "high_pressure"])]
     if cpa.empty:
-        fig.update_layout(title="No CPA1114 pressure data yet")
+        fig.update_layout(title="No compressor pressure data yet")
         return fig
 
-    fig = px.line(cpa, x="timestamp", y="value", color="metric")
+    cpa = cpa.copy()
+    cpa["metric_label"] = cpa["metric"].map(_metric_label)
+    fig = px.line(cpa, x="timestamp", y="value", color="metric_label")
     fig.update_layout(
         title="Compressor pressures",
         xaxis_title="timestamp",
         yaxis_title=_label_with_unit("pressure", cpa_unit),
         uirevision="keep",
-        legend_title_text="metric",
+        legend_title_text=None,
     )
     return fig
 
@@ -588,13 +673,14 @@ def _make_helium_level_figure(df: pd.DataFrame):
         secondary_y=True,
     )
     if df.empty:
+        fig.update_layout(title="No liquid helium level sensor data yet")
         return fig
 
     helium = df[df["metric"].isin(["resistance_average", "liquid_helium_level"])]
     if "device_id" in helium.columns:
         helium = helium[helium["device_id"] == "helium-level"]
     if helium.empty:
-        fig.update_layout(title="No liquid helium level data yet")
+        fig.update_layout(title="No liquid helium level sensor data yet")
         return fig
 
     resistance = helium[helium["metric"] == "resistance_average"]
@@ -653,6 +739,7 @@ def main() -> None:
     _set_local_timezone(timezone)
 
     app = dash.Dash(__name__)
+    app.title = "Liquid helium diagnostics"
     app.index_string = """<!DOCTYPE html>
 <html>
     <head>
@@ -929,8 +1016,8 @@ def main() -> None:
         Input("time-range", "value"),
     )
     def _update(_, time_range):
-        df = _load_data(args.csv)
-        status = _csv_status(args.csv, df, args.stale_after_minutes)
+        df, load_info = _load_data(args.csv, args.max_csv_rows)
+        status = _csv_status(args.csv, df, args.stale_after_minutes, load_info)
         temp_fig = _apply_time_range(_make_temperature_figure(df), df, time_range)
         pressure_fig = _apply_time_range(
             _make_pressure_heater_figure(df), df, time_range
@@ -946,6 +1033,7 @@ def main() -> None:
             helium_fig,
         )
 
+    print(f"Open this address in a browser: http://{args.host}:{args.port}")
     app.run(host=args.host, port=args.port, debug=False)
 
 

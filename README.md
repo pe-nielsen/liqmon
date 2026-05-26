@@ -68,6 +68,31 @@ http://127.0.0.1:8050
 
 Leave this terminal running while you want the dashboard to stay available.
 
+### Large CSV Files
+
+The dashboard protects itself from very large `readings.csv` files. By default,
+it only loads the latest 100,000 data rows, which is a realistic upper limit for
+keeping the browser dashboard responsive.
+
+If the CSV file is larger than this, the dashboard still opens and plots the most
+recent readings. It also shows a warning near the freshness status, for example:
+
+```text
+Large CSV file: showing latest 100,000 of 500,000 rows
+```
+
+Most users should leave this setting unchanged. If a different limit is needed,
+start the dashboard with:
+
+```bash
+uv run liqmon-dashboard --csv ../collector/data/readings.csv --max-csv-rows 100000
+```
+
+### How To Stop The App
+
+To stop the app, go to each terminal window that is running the collector or
+dashboard and press `Ctrl+C`.
+
 ## First-Time Setup
 
 If `collector/monitor.toml` does not exist yet, create it from the example file:
@@ -103,6 +128,17 @@ ignored by the app.
 After changing `monitor.toml`, stop the collector with `Ctrl+C` and start it
 again. The dashboard usually does not need to be restarted unless the CSV path
 changes.
+
+### Common Edits
+
+These are the settings users are most likely to need to change:
+
+| What to change | Where to edit | What it does |
+| --- | --- | --- |
+| Default reading interval | `[global]` `interval_s` | Sets the usual time between instrument readings, in seconds. |
+| Helium level reading interval | `[[devices]]` block with `id = "helium-level"` `measurement_interval_s` | Sets the time between liquid helium level measurements, in seconds. |
+| Helium level calibration | `[[devices]]` block with `id = "helium-level"` `normal_state_linear_resistivity_ohm_per_cm` | Calibration value used to convert sensor resistance into liquid helium level. |
+| Serial ports and IP addresses | Each `[[devices]]` block: serial `port`, or network `host` and `port` | Tells the collector how to connect to each instrument. |
 
 ### Global Settings
 

@@ -1,5 +1,7 @@
 [global]
+# Default time between readings for most instruments, in seconds.
 interval_s = 60
+# CSV file written by the collector. Keep the dashboard --csv path in step with this.
 output = "data/readings.csv"
 utc = true
 
@@ -40,6 +42,7 @@ unit = "psi"
 id = "scm10-serial"
 type = "scm10"
 transport = "serial"
+# Serial/USB adapter path for this instrument.
 port = "/dev/ttyUSB2"
 baudrate = 9600
 
@@ -47,6 +50,7 @@ baudrate = 9600
 id = "scm10-eth"
 type = "scm10"
 transport = "tcp"
+# Network address for this instrument.
 host = "192.168.0.4"
 port = 9760
 
@@ -54,6 +58,7 @@ port = 9760
 id = "hrc110-eth"
 type = "hrc110"
 transport = "tcp"
+# Network address for this instrument.
 host = "192.168.0.187"
 port = 4266
 # read_terminators = ["\r\n"]
@@ -63,6 +68,7 @@ query = "MEAS? 2"
 id = "cpa1114-eth"
 type = "cpa1114"
 transport = "tcp"
+# Network address for this instrument.
 host = "192.168.0.111"
 port = 502
 # unit_id = 16
@@ -73,15 +79,18 @@ port = 502
 id = "helium-level"
 type = "helium_level"
 transport = "serial"
+# Time between liquid helium level measurements, in seconds.
 measurement_interval_s = 3600
 heater_enabled = true
 total_sensor_length_cm = 140.0
+# Calibration value used to convert sensor resistance into liquid helium level.
 normal_state_linear_resistivity_ohm_per_cm = 0.436
+# Serial/USB adapter paths for the PSU and DMM.
 psu_port = "/dev/cu.usbserial-PSU"
 dmm_port = "/dev/cu.usbserial-DMM"
 psu_baudrate = 9600
 psu_rtscts = false
-psu dsrdtr = false
+psu_dsrdtr = false
 psu_write_terminator = "\r\n"
 dmm_baudrate = 9600
 # Optional if the Keithley serial output terminator differs from the default.

@@ -18,7 +18,6 @@ collector/data/readings.csv
 
 collector/monitor.toml
 
-
 # Local development scripts
 scratch/*
 collector/scratch/*
