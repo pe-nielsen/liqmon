@@ -1,5 +1,9 @@
 # Liquid helium monitoring
 
+Current release: `v0.1.0`
+
+This is the first feature-complete release intended for routine use by lab users.
+
 This app records live readings from the cryostat instruments and shows them in a
 browser dashboard.
 
