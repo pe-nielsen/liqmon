@@ -32,9 +32,9 @@ _SUMMARY_METRICS = [
     ("high_pressure", "high pressure", "", None),
 ]
 _HELIUM_LEVEL_GUIDES_CM = [
-    (14.0, "Magnet 1 Top (Sample)"),
-    (35.0, "Magnet 2 Top (ADR2)"),
-    (71.0, "Magnet 3 Top (ADR1)"),
+    (71.0, "First refrigeration magnet", "dot"),
+    (35.0, "Second refrigeration magnet", "dash"),
+    (14.0, "Sample magnet", "dashdot"),
 ]
 
 
@@ -463,7 +463,7 @@ def _make_temperature_figure(df: pd.DataFrame):
         return fig
     fig = px.line(df, x="timestamp", y="value", color="metric")
     fig.update_layout(
-        title="Temperature",
+        title="Liquefier cold head temperature",
         xaxis_title="timestamp",
         yaxis_title=_label_with_unit("temperature", temp_unit),
         uirevision="keep",
@@ -477,7 +477,7 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
     heater_unit = _metric_unit(df, "heater_power", "W")
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.update_layout(
-        title="Pressure + Heater Power",
+        title="Liquefier pressure and heater power",
         xaxis_title="timestamp",
         uirevision="keep",
     )
@@ -526,7 +526,7 @@ def _make_cpa_pressures_figure(df: pd.DataFrame):
     cpa_unit = low_unit or high_unit
     fig = px.line()
     fig.update_layout(
-        title="CPA1114 Pressures",
+        title="Compressor pressures",
         xaxis_title="timestamp",
         yaxis_title=_label_with_unit("pressure", cpa_unit),
         uirevision="keep",
@@ -541,7 +541,7 @@ def _make_cpa_pressures_figure(df: pd.DataFrame):
 
     fig = px.line(cpa, x="timestamp", y="value", color="metric")
     fig.update_layout(
-        title="CPA1114 Pressures",
+        title="Compressor pressures",
         xaxis_title="timestamp",
         yaxis_title=_label_with_unit("pressure", cpa_unit),
         uirevision="keep",
@@ -557,7 +557,7 @@ def _make_helium_level_figure(df: pd.DataFrame):
     level_unit = _metric_unit(df, "liquid_helium_level", "cm", device_id="helium-level")
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.update_layout(
-        title="Liquid Helium Level",
+        title="Liquid helium level sensor",
         xaxis_title="timestamp",
         uirevision="keep",
         legend={
@@ -606,7 +606,7 @@ def _make_helium_level_figure(df: pd.DataFrame):
                 y=resistance["value"],
                 name="sensor resistance",
                 mode="lines+markers",
-                line={"color": "#6f4e7c", "width": 2},
+                line={"width": 2},
                 marker={"size": 5},
             ),
             secondary_y=False,
@@ -618,7 +618,7 @@ def _make_helium_level_figure(df: pd.DataFrame):
                 y=level["value"],
                 name="liquid helium level",
                 mode="lines+markers",
-                line={"color": "#16836f", "width": 2},
+                line={"width": 2},
                 marker={"size": 5},
             ),
             secondary_y=True,
@@ -632,7 +632,7 @@ def _add_helium_level_guides(fig, level: pd.DataFrame) -> None:
         return
     x0 = level["timestamp"].min()
     x1 = level["timestamp"].max()
-    for level_cm, label in _HELIUM_LEVEL_GUIDES_CM:
+    for level_cm, label, dash in _HELIUM_LEVEL_GUIDES_CM:
         fig.add_trace(
             go.Scatter(
                 x=[x0, x1],
@@ -640,7 +640,7 @@ def _add_helium_level_guides(fig, level: pd.DataFrame) -> None:
                 name=label,
                 legend="legend2",
                 mode="lines",
-                line={"color": "rgba(80, 90, 110, 0.55)", "width": 1.5, "dash": "dot"},
+                line={"color": "rgba(80, 90, 110, 0.65)", "width": 1.5, "dash": dash},
                 hovertemplate=f"{label}<br>{level_cm:.0f} cm<extra></extra>",
             ),
             secondary_y=True,
@@ -871,7 +871,9 @@ def main() -> None:
             html.Div(
                 className="header",
                 children=[
-                    html.Div("liqmon live readings", className="title"),
+                    html.Div(
+                        "Liquid helium diagnostic information", className="title"
+                    ),
                     html.Div(
                         (
                             f"refresh: {args.interval_ms} ms · "
