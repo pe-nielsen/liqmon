@@ -27,17 +27,17 @@ _TIME_RANGES = {
 }
 _SUMMARY_METRICS = [
     ("liquid_helium_level", "helium level", "cm", "helium-level"),
-    ("resistance_average", "sensor resistance", "ohm", "helium-level"),
-    ("temperature", "temperature", "K", None),
-    ("pressure", "pressure", "", None),
-    ("heater_power", "heater power", "W", None),
-    ("low_pressure", "low pressure", "", None),
-    ("high_pressure", "high pressure", "", None),
+    ("resistance_average", "level meter resistance", "ohm", "helium-level"),
+    ("temperature", "liquefier temperature", "K", None),
+    ("pressure", "liquefier pressure", "", None),
+    ("heater_power", "liquefier heater power", "W", None),
+    ("low_pressure", "pulse-tube low pressure", "", None),
+    ("high_pressure", "pulse-tube high pressure", "", None),
 ]
 _HELIUM_LEVEL_GUIDES_CM = [
-    (71.0, "First refrigeration magnet", "dot"),
-    (35.0, "Second refrigeration magnet", "dash"),
-    (14.0, "Sample magnet", "dashdot"),
+    (71.0, "Upper magnet, top", "dot"),
+    (35.0, "Middle magnet, top", "dash"),
+    (14.0, "Lower magnet, top", "dashdot"),
 ]
 _METRIC_LABELS = {
     "heater_power": "Heater power",
@@ -167,7 +167,9 @@ def _load_data(path: str, max_rows: int) -> tuple[pd.DataFrame, dict[str, Any]]:
     return df, load_info
 
 
-def _read_csv_tail(csv_path: Path, max_rows: int) -> tuple[pd.DataFrame, dict[str, Any]]:
+def _read_csv_tail(
+    csv_path: Path, max_rows: int
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     if max_rows <= 0:
         df = pd.read_csv(csv_path)
         return df, {
@@ -266,9 +268,7 @@ def _apply_visible_y_ranges(fig, bounds: list[datetime] | None) -> None:
         return
 
     axis_layout_names = {"y": "yaxis"}
-    axis_layout_names.update(
-        {f"y{index}": f"yaxis{index}" for index in range(2, 10)}
-    )
+    axis_layout_names.update({f"y{index}": f"yaxis{index}" for index in range(2, 10)})
     for axis, values in values_by_axis.items():
         axis_layout_name = axis_layout_names.get(axis)
         if axis_layout_name is None or not hasattr(fig.layout, axis_layout_name):
@@ -504,10 +504,7 @@ def _make_status(status: dict[str, Any], timezone: tzinfo) -> html.Div:
                     ),
                 ],
             ),
-            *[
-                html.Div(warning, className="stale-warning")
-                for warning in warnings
-            ],
+            *[html.Div(warning, className="stale-warning") for warning in warnings],
             html.Div(
                 className="file-meta",
                 children=(
@@ -738,8 +735,12 @@ def main() -> None:
     timezone = _local_timezone()
     _set_local_timezone(timezone)
 
-    app = dash.Dash(__name__)
-    app.title = "Liquid helium diagnostics"
+    app = dash.Dash(
+        __name__,
+        assets_folder=str(Path(__file__).with_name("assets")),
+        update_title=None,
+    )
+    app.title = "LHe Diagnostics"
     app.index_string = """<!DOCTYPE html>
 <html>
     <head>
@@ -777,6 +778,22 @@ def main() -> None:
                 gap: 6px;
                 margin-bottom: 20px;
                 animation: fadeIn 500ms ease-out;
+            }
+            .header-brand {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                min-width: 0;
+            }
+            .site-logo {
+                width: 168px;
+                max-width: 34vw;
+                height: auto;
+                flex: 0 0 auto;
+                display: block;
+            }
+            .header-copy {
+                min-width: 0;
             }
             .title {
                 font-size: 28px;
@@ -932,6 +949,18 @@ def main() -> None:
                 }
             }
             @media (max-width: 640px) {
+                .header-brand {
+                    align-items: flex-start;
+                    gap: 10px;
+                }
+                .site-logo {
+                    width: 128px;
+                    max-width: 42vw;
+                }
+                .title {
+                    font-size: 23px;
+                    line-height: 1.18;
+                }
                 .summary-grid {
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                 }
@@ -970,14 +999,30 @@ def main() -> None:
                 className="header",
                 children=[
                     html.Div(
-                        "Liquid helium diagnostic information", className="title"
-                    ),
-                    html.Div(
-                        (
-                            f"refresh: {args.interval_ms} ms · "
-                            f"timezone: {_timezone_label(timezone)}"
-                        ),
-                        className="subtitle",
+                        className="header-brand",
+                        children=[
+                            html.Img(
+                                src=app.get_asset_url("logo.png"),
+                                className="site-logo",
+                                alt="Dashboard logo",
+                            ),
+                            html.Div(
+                                className="header-copy",
+                                children=[
+                                    html.Div(
+                                        "Helium liquefier and level meter diagnostics",
+                                        className="title",
+                                    ),
+                                    html.Div(
+                                        (
+                                            f"refresh: {args.interval_ms} ms · "
+                                            f"timezone: {_timezone_label(timezone)}"
+                                        ),
+                                        className="subtitle",
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
                 ],
             ),
