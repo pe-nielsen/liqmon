@@ -51,7 +51,7 @@ Each measurement is a separate row, so devices that return multiple values (like
 - `cpa1114` supports `unit_id` (default `16`) and uses TCP port `502` by default.
 - Set the TCP host/port and serial parameters to match each instrument.
 - `helium_level` uses `measurement_interval_s` instead of the global interval. With `heater_enabled = true`, it sets the PSU voltage/current limits, verifies them, briefly turns the output on, records PSU voltage/current, turns the PSU output off, and switches the Keithley back to DC voltage mode after each measurement attempt. With `heater_enabled = false`, it skips all PSU setup/output/current-voltage reads; `psu_port` can be omitted.
-- `liquid_helium_level` is calculated as `total_sensor_length_cm - resistance_average / normal_state_linear_resistivity_ohm_per_cm`.
+- `liquid_helium_level` is calculated as `(calibration_zero_level_resistance_ohm - resistance_average) / calibration_resistance_per_cm`. Update these calibration values during first-install setup for the installed sensor.
 
 Example helium level configuration:
 
@@ -62,8 +62,8 @@ type = "helium_level"
 transport = "serial"
 measurement_interval_s = 3600
 heater_enabled = true
-total_sensor_length_cm = 140.0
-normal_state_linear_resistivity_ohm_per_cm = 0.436
+calibration_zero_level_resistance_ohm = 45.398
+calibration_resistance_per_cm = 0.274
 psu_port = "/dev/cu.usbserial-PSU"
 dmm_port = "/dev/cu.usbserial-DMM"
 psu_baudrate = 9600

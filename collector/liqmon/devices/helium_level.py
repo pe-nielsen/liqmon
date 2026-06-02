@@ -37,8 +37,8 @@ class HeliumLevelSettings:
     dmm: SerialInstrumentSettings
     psu: SerialInstrumentSettings | None = None
     heater_enabled: bool = True
-    total_sensor_length_cm: float = 140.0
-    normal_state_linear_resistivity_ohm_per_cm: float = 0.436
+    calibration_zero_level_resistance_ohm: float = 45.398
+    calibration_resistance_per_cm: float = 0.274
     psu_channel: str = "OUT1"
     psu_voltage_limit_v: float = 10.0
     psu_current_limit_a: float = 0.1
@@ -112,9 +112,8 @@ class HeliumLevelDevice:
 
         average_ohm = mean(readings)
         liquid_helium_level_cm = (
-            self._settings.total_sensor_length_cm
-            - average_ohm / self._settings.normal_state_linear_resistivity_ohm_per_cm
-        )
+            self._settings.calibration_zero_level_resistance_ohm - average_ohm
+        ) / self._settings.calibration_resistance_per_cm
         raw = json.dumps(
             {
                 "heater_enabled": self._settings.heater_enabled,
@@ -122,10 +121,10 @@ class HeliumLevelDevice:
                 "psu_current_a": current_a,
                 "resistance_readings_ohm": readings,
                 "resistance_average_ohm": average_ohm,
-                "total_sensor_length_cm": self._settings.total_sensor_length_cm,
-                "normal_state_linear_resistivity_ohm_per_cm": (
-                    self._settings.normal_state_linear_resistivity_ohm_per_cm
+                "calibration_zero_level_resistance_ohm": (
+                    self._settings.calibration_zero_level_resistance_ohm
                 ),
+                "calibration_resistance_per_cm": self._settings.calibration_resistance_per_cm,
                 "liquid_helium_level_cm": liquid_helium_level_cm,
             },
             separators=(",", ":"),

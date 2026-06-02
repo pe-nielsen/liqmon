@@ -1,6 +1,6 @@
 [global]
 # Default time between readings for most instruments, in seconds.
-interval_s = 60
+interval_s = 600
 # CSV file written by the collector. Keep the dashboard --csv path in step with this.
 output = "data/readings.csv"
 utc = true
@@ -82,9 +82,11 @@ transport = "serial"
 # Time between liquid helium level measurements, in seconds.
 measurement_interval_s = 3600
 heater_enabled = true
-total_sensor_length_cm = 140.0
-# Calibration value used to convert sensor resistance into liquid helium level.
-normal_state_linear_resistivity_ohm_per_cm = 0.436
+# Calibration values used to convert sensor resistance into liquid helium level.
+# Update these for the installed sensor during first-install setup.
+# L = (calibration_zero_level_resistance_ohm - R) / calibration_resistance_per_cm
+calibration_zero_level_resistance_ohm = 45.398
+calibration_resistance_per_cm = 0.274
 # Serial/USB adapter paths for the PSU and DMM.
 psu_port = "/dev/cu.usbserial-PSU"
 dmm_port = "/dev/cu.usbserial-DMM"

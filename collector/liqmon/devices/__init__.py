@@ -61,11 +61,9 @@ def _build_helium_level(cfg: DeviceConfig) -> HeliumLevelDevice:
     resistance_readings = int(settings.get("resistance_readings", 3))
     if resistance_readings < 1:
         raise ValueError("helium_level resistance_readings must be >= 1")
-    normal_state_linear_resistivity = float(
-        settings.get("normal_state_linear_resistivity_ohm_per_cm", 0.436)
-    )
-    if normal_state_linear_resistivity <= 0:
-        raise ValueError("helium_level normal_state_linear_resistivity_ohm_per_cm must be > 0")
+    calibration_resistance_per_cm = float(settings.get("calibration_resistance_per_cm", 0.274))
+    if calibration_resistance_per_cm <= 0:
+        raise ValueError("helium_level calibration_resistance_per_cm must be > 0")
 
     psu_settings = None
     if psu_port:
@@ -95,8 +93,10 @@ def _build_helium_level(cfg: DeviceConfig) -> HeliumLevelDevice:
             psu=psu_settings,
             dmm=dmm_settings,
             heater_enabled=heater_enabled,
-            total_sensor_length_cm=float(settings.get("total_sensor_length_cm", 140.0)),
-            normal_state_linear_resistivity_ohm_per_cm=normal_state_linear_resistivity,
+            calibration_zero_level_resistance_ohm=float(
+                settings.get("calibration_zero_level_resistance_ohm", 45.398)
+            ),
+            calibration_resistance_per_cm=calibration_resistance_per_cm,
             psu_channel=str(settings.get("psu_channel", "OUT1")),
             psu_voltage_limit_v=float(settings.get("psu_voltage_limit_v", 10.0)),
             psu_current_limit_a=float(settings.get("psu_current_limit_a", 0.1)),
