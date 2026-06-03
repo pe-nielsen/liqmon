@@ -141,7 +141,7 @@ These are the settings users are most likely to need to change:
 | --- | --- | --- |
 | Default reading interval | `[global]` `interval_s` | Sets the usual time between instrument readings, in seconds. |
 | Helium level reading interval | `[[devices]]` block with `id = "helium-level"` `measurement_interval_s` | Sets the time between liquid helium level measurements, in seconds. |
-| Helium level calibration | `[[devices]]` block with `id = "helium-level"` `normal_state_linear_resistivity_ohm_per_cm` | Calibration value used to convert sensor resistance into liquid helium level. |
+| Helium level calibration | `[[devices]]` block with `id = "helium-level"` `calibration_zero_level_resistance_ohm` and `calibration_resistance_per_cm` | Calibration values used to convert sensor resistance into liquid helium level. |
 | Serial ports and IP addresses | Each `[[devices]]` block: serial `port`, or network `host` and `port` | Tells the collector how to connect to each instrument. |
 
 ### Global Settings
@@ -200,9 +200,10 @@ Important fields:
 - `measurement_interval_s`: time between helium level measurements, in seconds.
 - `heater_enabled`: set to `true` to use the PSU heater, or `false` to read
   resistance without controlling the PSU.
-- `total_sensor_length_cm`: total sensor length.
-- `normal_state_linear_resistivity_ohm_per_cm`: calibration value used to convert
-  resistance into level.
+- `calibration_zero_level_resistance_ohm`: resistance, in ohms, corresponding
+  to zero liquid helium level. Default: `45.398`.
+- `calibration_resistance_per_cm`: calibration slope, in ohms per cm. Default:
+  `0.274`.
 - `psu_port`: serial port for the PSU. Not needed when `heater_enabled = false`.
 - `dmm_port`: serial port for the DMM.
 - `resistance_readings`: number of resistance readings to average.
@@ -210,7 +211,7 @@ Important fields:
 The calculated liquid helium level is:
 
 ```text
-total_sensor_length_cm - resistance_average / normal_state_linear_resistivity_ohm_per_cm
+(calibration_zero_level_resistance_ohm - resistance_average) / calibration_resistance_per_cm
 ```
 
 ### Email Alerts
