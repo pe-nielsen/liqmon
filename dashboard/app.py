@@ -35,9 +35,9 @@ _SUMMARY_METRICS = [
     ("high_pressure", "pulse-tube high pressure", "", None),
 ]
 _HELIUM_LEVEL_GUIDES_CM = [
-    (81.0, "Upper magnet, top", "dot"),
-    (44.0, "Middle magnet, top", "dash"),
-    (23.0, "Lower magnet, top", "dashdot"),
+    (81.0, "Upper magnet, top"),
+    (44.0, "Middle magnet, top"),
+    (23.0, "Lower magnet, top"),
 ]
 _METRIC_LABELS = {
     "heater_power": "Heater power",
@@ -650,14 +650,6 @@ def _make_helium_level_figure(df: pd.DataFrame):
             "xanchor": "left",
             "x": 0,
         },
-        legend2={
-            "title": {"text": "magnet indicators"},
-            "orientation": "v",
-            "yanchor": "top",
-            "y": -0.28,
-            "xanchor": "left",
-            "x": 0.48,
-        },
         margin={"r": 92, "b": 150},
     )
     fig.update_yaxes(
@@ -715,18 +707,30 @@ def _add_helium_level_guides(fig, level: pd.DataFrame) -> None:
         return
     x0 = level["timestamp"].min()
     x1 = level["timestamp"].max()
-    for level_cm, label, dash in _HELIUM_LEVEL_GUIDES_CM:
-        fig.add_trace(
-            go.Scatter(
-                x=[x0, x1],
-                y=[level_cm, level_cm],
-                name=label,
-                legend="legend2",
-                mode="lines",
-                line={"color": "rgba(80, 90, 110, 0.65)", "width": 1.5, "dash": dash},
-                hovertemplate=f"{label}<br>{level_cm:.0f} cm<extra></extra>",
-            ),
-            secondary_y=True,
+    for level_cm, label in _HELIUM_LEVEL_GUIDES_CM:
+        fig.add_shape(
+            type="line",
+            x0=x0,
+            x1=x1,
+            xref="x",
+            y0=level_cm,
+            y1=level_cm,
+            yref="y2",
+            line={"color": "rgba(80, 90, 110, 0.42)", "width": 1.0},
+        )
+        fig.add_annotation(
+            x=0.995,
+            xanchor="right",
+            xref="paper",
+            y=level_cm,
+            yanchor="bottom",
+            yref="y2",
+            text=f"{label} ({level_cm:.0f} cm)",
+            showarrow=False,
+            align="right",
+            font={"size": 11, "color": "rgba(55, 65, 81, 0.82)"},
+            bgcolor="rgba(255, 255, 255, 0.72)",
+            borderpad=2,
         )
 
 
