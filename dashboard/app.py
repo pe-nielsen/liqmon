@@ -35,9 +35,9 @@ _SUMMARY_METRICS = [
     ("high_pressure", "pulse-tube high pressure", "", None),
 ]
 _HELIUM_LEVEL_GUIDES_CM = [
-    (71.0, "Upper magnet, top", "dot"),
-    (35.0, "Middle magnet, top", "dash"),
-    (14.0, "Lower magnet, top", "dashdot"),
+    (81.0, "Upper magnet, top", "dot"),
+    (44.0, "Middle magnet, top", "dash"),
+    (23.0, "Lower magnet, top", "dashdot"),
 ]
 _METRIC_LABELS = {
     "heater_power": "Heater power",
