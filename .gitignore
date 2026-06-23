@@ -13,8 +13,12 @@ wheels/
 # Virtual environments
 .venv
 
-# Collector output
+# Runtime data
+data/
 collector/data/readings.csv
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 collector/monitor.toml
 
