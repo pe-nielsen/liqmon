@@ -556,6 +556,15 @@ def _make_pressure_heater_figure(df: pd.DataFrame):
         title="Liquefier pressure and heater power",
         xaxis_title="timestamp",
         uirevision="keep",
+        legend={
+            "orientation": "h",
+            "x": 0.5,
+            "xanchor": "center",
+            "y": 1.02,
+            "yanchor": "bottom",
+        },
+        legend_title_text=None,
+        margin={"r": 80, "t": 110, "b": 80},
     )
     if df.empty:
         fig.update_layout(title="No liquefier pressure or heater power data yet")
@@ -643,14 +652,14 @@ def _make_helium_level_figure(df: pd.DataFrame):
         xaxis_title="timestamp",
         uirevision="keep",
         legend={
-            "title": {"text": "readings"},
-            "orientation": "v",
-            "yanchor": "top",
-            "y": -0.28,
-            "xanchor": "left",
-            "x": 0,
+            "orientation": "h",
+            "x": 0.5,
+            "xanchor": "center",
+            "y": 1.02,
+            "yanchor": "bottom",
         },
-        margin={"r": 92, "b": 150},
+        legend_title_text=None,
+        margin={"r": 80, "t": 110, "b": 80},
     )
     fig.update_yaxes(
         title_text=_label_with_unit("sensor resistance", resistance_unit),
@@ -679,7 +688,7 @@ def _make_helium_level_figure(df: pd.DataFrame):
             go.Scatter(
                 x=resistance["timestamp"],
                 y=resistance["value"],
-                name="sensor resistance",
+                name="Sensor resistance",
                 mode="lines+markers",
                 line={"width": 2},
                 marker={"size": 5},
@@ -691,7 +700,7 @@ def _make_helium_level_figure(df: pd.DataFrame):
             go.Scatter(
                 x=level["timestamp"],
                 y=level["value"],
-                name="liquid helium level",
+                name="Liquid helium level",
                 mode="lines+markers",
                 line={"width": 2},
                 marker={"size": 5},
