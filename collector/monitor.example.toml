@@ -24,9 +24,10 @@ to = [
 ]
 
 [[alerts.rules]]
-id = "scm10-temperature-max"
+id = "scm10-temperature-range"
 device_id = "scm10-eth"
 metric = "temperature"
+min = 4.0
 max = 5.0
 unit = "K"
 
